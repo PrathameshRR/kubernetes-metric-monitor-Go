@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: k-monitor
+  namespace: default
+  labels:
+    app: k-monitor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: k-monitor
+  template:
+    metadata:
+      labels:
+        app: k-monitor
+    spec:
+      serviceAccountName: k-monitor
+      containers:
+      - name: k-monitor
+        image: k-monitor:latest
+        imagePullPolicy: Never
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "200m"
+            memory: "256Mi" 
