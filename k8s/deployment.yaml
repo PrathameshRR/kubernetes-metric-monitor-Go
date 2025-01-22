@@ -19,11 +19,32 @@ spec:
       containers:
       - name: k-monitor
         image: k-monitor:latest
-        imagePullPolicy: Never
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 80
+          name: http
+        - containerPort: 8080
+          name: api
         resources:
           requests:
+            memory: "256Mi"
             cpu: "100m"
-            memory: "128Mi"
           limits:
+            memory: "512Mi"
             cpu: "200m"
-            memory: "256Mi" 
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: k-monitor
+spec:
+  type: NodePort  # Changed from LoadBalancer to NodePort
+  ports:
+  - port: 80
+    targetPort: 80
+    nodePort: 30080  # Explicitly set the node port
+    protocol: TCP
+    name: http
+  selector:
+    app: k-monitor 
