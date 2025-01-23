@@ -36,7 +36,7 @@ export default function Home() {
   useEffect(() => {
     const fetchMetrics = async () => {
       try {
-        const response = await fetch('http://localhost:8080/api/metrics');
+        const response = await fetch('http://localhost:8081/api/metrics');
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }

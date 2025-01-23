@@ -125,7 +125,7 @@ func main() {
 
 	// Set up HTTP server with timeouts
 	server := &http.Server{
-		Addr:         ":8080",
+		Addr:         ":8081",
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  60 * time.Second,
@@ -139,7 +139,7 @@ func main() {
 	
 	// Start the service listening for requests.
 	go func() {
-		log.Println("Starting HTTP server on :8080")
+		log.Println("Starting HTTP server on :8081")
 		serverErrors <- server.ListenAndServe()
 	}()
 
