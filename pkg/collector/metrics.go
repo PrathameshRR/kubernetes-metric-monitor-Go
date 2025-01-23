@@ -15,6 +15,8 @@ import (
 type MetricsCollector struct {
 	kubeClient    *kubernetes.Clientset
 	metricsClient *metrics.Clientset
+	callback      func(map[string]interface{})
+	stopCh        chan struct{}
 }
 
 // NewMetricsCollector creates a new metrics collector instance
@@ -22,12 +24,21 @@ func NewMetricsCollector(kubeClient *kubernetes.Clientset, metricsClient *metric
 	return &MetricsCollector{
 		kubeClient:    kubeClient,
 		metricsClient: metricsClient,
+		stopCh:        make(chan struct{}),
 	}
+}
+
+// SetCallback sets the callback function for metrics updates
+func (mc *MetricsCollector) SetCallback(callback func(map[string]interface{})) {
+	mc.callback = callback
 }
 
 // CollectNodeMetrics gathers metrics for all nodes
 func (mc *MetricsCollector) CollectNodeMetrics() ([]metricsv1beta1.NodeMetrics, error) {
-	nodeMetrics, err := mc.metricsClient.MetricsV1beta1().NodeMetricses().List(context.TODO(), metav1.ListOptions{})
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	nodeMetrics, err := mc.metricsClient.MetricsV1beta1().NodeMetricses().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -36,7 +47,10 @@ func (mc *MetricsCollector) CollectNodeMetrics() ([]metricsv1beta1.NodeMetrics, 
 
 // CollectPodMetrics gathers metrics for all pods
 func (mc *MetricsCollector) CollectPodMetrics(namespace string) ([]metricsv1beta1.PodMetrics, error) {
-	podMetrics, err := mc.metricsClient.MetricsV1beta1().PodMetricses(namespace).List(context.TODO(), metav1.ListOptions{})
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	podMetrics, err := mc.metricsClient.MetricsV1beta1().PodMetricses(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -44,51 +58,62 @@ func (mc *MetricsCollector) CollectPodMetrics(namespace string) ([]metricsv1beta
 }
 
 // StartCollection begins periodic metrics collection
-func (mc *MetricsCollector) StartCollection(intervalSeconds int) {
+func (mc *MetricsCollector) StartCollection(intervalSeconds int) func() {
 	interval := time.Duration(intervalSeconds) * time.Second
+	
+	// Start collection in a goroutine
 	go func() {
 		// Collect immediately on start
-		mc.collectAndLogMetrics()
+		if err := mc.collectAndLogMetrics(); err != nil {
+			log.Printf("Initial metrics collection failed: %v", err)
+		}
 
 		ticker := time.NewTicker(interval)
-		for range ticker.C {
-			mc.collectAndLogMetrics()
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				if err := mc.collectAndLogMetrics(); err != nil {
+					log.Printf("Error collecting metrics: %v", err)
+				}
+			case <-mc.stopCh:
+				log.Println("Stopping metrics collection")
+				return
+			}
 		}
 	}()
+
+	// Return a function that can be called to stop collection
+	return func() {
+		close(mc.stopCh)
+	}
 }
 
 // collectAndLogMetrics collects and logs metrics in one place
-func (mc *MetricsCollector) collectAndLogMetrics() {
+func (mc *MetricsCollector) collectAndLogMetrics() error {
 	// Collect node metrics
 	nodeMetrics, err := mc.CollectNodeMetrics()
 	if err != nil {
-		log.Printf("Error collecting node metrics: %v", err)
-		return
-	}
-	log.Printf("Collected metrics from %d nodes", len(nodeMetrics))
-
-	// Log some details about node metrics
-	for _, node := range nodeMetrics {
-		log.Printf("Node: %s", node.Name)
-		log.Printf("  CPU: %v", node.Usage.Cpu())
-		log.Printf("  Memory: %v", node.Usage.Memory())
+		return err
 	}
 
 	// Collect pod metrics from all namespaces
 	podMetrics, err := mc.CollectPodMetrics("")
 	if err != nil {
-		log.Printf("Error collecting pod metrics: %v", err)
-		return
+		return err
 	}
-	log.Printf("Collected metrics from %d pods", len(podMetrics))
 
-	// Log some details about pod metrics
-	for _, pod := range podMetrics {
-		log.Printf("Pod: %s/%s", pod.Namespace, pod.Name)
-		for _, container := range pod.Containers {
-			log.Printf("  Container: %s", container.Name)
-			log.Printf("    CPU: %v", container.Usage.Cpu())
-			log.Printf("    Memory: %v", container.Usage.Memory())
-		}
+	// Create metrics map for callback
+	metrics := map[string]interface{}{
+		"nodes": nodeMetrics,
+		"pods":  podMetrics,
 	}
+
+	// Call callback if set
+	if mc.callback != nil {
+		mc.callback(metrics)
+	}
+
+	return nil
 } 

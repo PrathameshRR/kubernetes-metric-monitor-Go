@@ -9,6 +9,12 @@ fi
 echo "Enabling metrics-server..."
 minikube addons enable metrics-server
 
+echo "Enabling local registry in minikube"
+minikube addons enable registry
+
+echo "Setting docker to use minikube's docker daemon"
+eval $(minikube docker-env)
+
 echo "Building Docker image..."
 docker build -t k-monitor:latest .
 
@@ -20,7 +26,10 @@ kubectl apply -f k8s/rbac.yaml
 kubectl apply -f k8s/deployment.yaml
 
 echo "Waiting for deployment to be ready..."
-kubectl wait --for=condition=available deployment/k-monitor --timeout=60s
+kubectl rollout status deployment/k-monitor
+
+echo "Getting service URL..."
+minikube service k-monitor --url
 
 echo "Deployment complete! You can check the logs with:"
 echo "kubectl logs -f deployment/k-monitor"
