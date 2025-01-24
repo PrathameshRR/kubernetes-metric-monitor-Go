@@ -45,6 +45,12 @@ export default function Home() {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         const data = await response.json();
+        
+        // Validate the data structure
+        if (!data || !Array.isArray(data.nodes) || !Array.isArray(data.pods)) {
+          throw new Error('Invalid metrics data format');
+        }
+        
         setMetrics(data);
         setError(null);
       } catch (err) {
@@ -75,11 +81,17 @@ export default function Home() {
     );
   }
 
-  const nodeData = metrics.nodes.map(node => ({
-    name: node.metadata.name,
-    cpu: parseFloat(node.usage.cpu.slice(0, -1)), // Remove 'm' and convert to number
-    memory: parseInt(node.usage.memory.slice(0, -2)) // Remove 'Mi' and convert to number
-  }));
+  const nodeData = metrics.nodes.map(node => {
+    // Add null checks and default values
+    const cpuValue = node?.usage?.cpu || '0m';
+    const memoryValue = node?.usage?.memory || '0Mi';
+    
+    return {
+      name: node?.metadata?.name || 'Unknown',
+      cpu: parseFloat(cpuValue.slice(0, -1)) || 0, // Default to 0 if parsing fails
+      memory: parseInt(memoryValue.slice(0, -2)) || 0 // Default to 0 if parsing fails
+    };
+  });
 
   return (
     <div className="p-6">
@@ -103,16 +115,16 @@ export default function Home() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {metrics.pods.map(pod => (
-          <div key={pod.metadata.name} className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
-            <h3 className="text-lg font-semibold mb-2">{pod.metadata.name}</h3>
+          <div key={pod?.metadata?.name || Math.random()} className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+            <h3 className="text-lg font-semibold mb-2">{pod?.metadata?.name || 'Unknown Pod'}</h3>
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <span className="text-sm text-gray-500">CPU Usage</span>
-                <p className="text-xl font-bold">{pod.usage.cpu}</p>
+                <p className="text-xl font-bold">{pod?.usage?.cpu || '0m'}</p>
               </div>
               <div>
                 <span className="text-sm text-gray-500">Memory Usage</span>
-                <p className="text-xl font-bold">{pod.usage.memory}</p>
+                <p className="text-xl font-bold">{pod?.usage?.memory || '0Mi'}</p>
               </div>
             </div>
           </div>
