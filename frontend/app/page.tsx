@@ -36,7 +36,11 @@ export default function Home() {
   useEffect(() => {
     const fetchMetrics = async () => {
       try {
-        const response = await fetch('/api/metrics');
+        const basePath = process.env.NODE_ENV === 'production' 
+          ? '' 
+          : 'http://localhost:8080';
+    
+        const response = await fetch(`${basePath}/api/metrics`);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
