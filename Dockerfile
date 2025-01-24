@@ -31,6 +31,6 @@ RUN npm install --production
 WORKDIR /app
 RUN mkdir -p /run/nginx && \
     chown -R node:node /app /run/nginx /var/log/nginx /var/lib/nginx /etc/nginx
-EXPOSE 80 3000 8080
+EXPOSE 80 3000 8081
 USER node
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
