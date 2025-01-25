@@ -66,23 +66,6 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host "`nDeployment complete! You can check the logs with:"
 Write-Host "kubectl logs -f deployment/k-monitor" -ForegroundColor Green
 
-# Enable local registry in minikube
-minikube addons enable registry
-
-# Set docker to use minikube's docker daemon
-minikube docker-env | Invoke-Expression
-
-# Build the container image
-docker build -t k-monitor:latest .
-
-# Apply RBAC roles first
-kubectl apply -f k8s/rbac.yaml
-
-# Apply the deployment
-kubectl apply -f k8s/deployment.yaml
-
-# Wait for deployment to be ready
-kubectl rollout status deployment/k-monitor
 
 # Get the URL to access the service
 Write-Host "Getting service URL..."
