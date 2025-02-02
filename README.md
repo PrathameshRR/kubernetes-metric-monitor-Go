@@ -2,6 +2,9 @@
 
 A lightweight, efficient Kubernetes monitoring solution that provides real-time insights into cluster resource utilization.
 
+![image](https://github.com/user-attachments/assets/055516da-1f3a-4138-87cd-af5611d83537)
+
+
 ## Features
 
 - Real-time monitoring of Kubernetes cluster resources
